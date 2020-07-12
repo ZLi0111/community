@@ -1,12 +1,15 @@
 package com.qiqi.community.controller;
 
 import com.qiqi.community.service.AlphaService;
+import com.qiqi.community.util.CommunityConstant;
+import com.qiqi.community.util.CommunityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -128,5 +131,28 @@ public class AlphaController {
         return list;
     }
 
+    //cookie example
 
+    @RequestMapping(path = "/cookie/set", method = RequestMethod.GET)
+    @ResponseBody
+    public String setCookie(HttpServletResponse response){
+        // create cookie
+        Cookie cookie = new Cookie("code", CommunityUtil.generateUUID());
+        // set range
+        cookie.setPath("/community/alpha");
+        // set live time
+        cookie.setMaxAge(60 * 10);
+        // send cookie
+        response.addCookie(cookie);
+
+        return "set cookie success";
+    }
+
+    @RequestMapping(path = "/cookie/get", method = RequestMethod.GET)
+    @ResponseBody
+    public String getCookie(@CookieValue("code")String code){
+        System.out.println(code);
+        return "get cookie success";
+
+    }
 }
