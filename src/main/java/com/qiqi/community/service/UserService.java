@@ -166,4 +166,59 @@ public class UserService implements CommunityConstant {
     public int updateHeader(int userId, String headerUrl){
         return userMapper.updateHeader(userId,headerUrl);
     }
+
+    public Map<String, Object> resetPassword(String email, String password){
+        Map<String,Object> map = new HashMap<>();
+
+        if(StringUtils.isBlank(email)){
+            map.put("emailMsg", "Email Can't Be Blank");
+            return map;
+        }
+        if(StringUtils.isBlank(password)){
+            map.put("passwordMsg", "Password Can't Be Blank");
+            return map;
+        }
+
+        User user = userMapper.selectByEmail(email);
+        if(user == null){
+            map.put("emailMsg", "This Email Haven't Been Registered");
+            return map;
+        }
+
+        password = CommunityUtil.md5(password) + user.getSalt();
+        if(password.equals(user.getPassword())){
+            map.put("passwordMsg","New password can't not be the same as old password");
+            return map;
+        }
+        userMapper.updatePassword(user.getId(),password);
+
+        map.put("user",user);
+        return map;
+
+    }
+
+    public Map<String , Object> updatePassword(int userId, String oldPassword, String newPassword){
+
+        Map<String , Object> map = new HashMap<>() ;
+
+        if(StringUtils.isBlank(oldPassword)){
+            map.put("oldPasswordMsg", "Original Password Can't Be Blank");
+            return map;
+        }
+        if(StringUtils.isBlank(newPassword)){
+            map.put("newPasswordMsg", "New Password Can't Be Blank");
+            return map;
+        }
+
+        User user = userMapper.selectById(userId);
+        oldPassword = CommunityUtil.md5(oldPassword) + user.getSalt();
+        if(!user.getPassword().equals(oldPassword)){
+            map.put("oldPasswordMsg", "Enter the right password");
+            return map;
+        }
+        newPassword = CommunityUtil.md5(newPassword) + user.getSalt();
+        userMapper.updatePassword(userId,newPassword);
+        return map;
+
+    }
 }

@@ -4,6 +4,8 @@ import com.google.code.kaptcha.Producer;
 import com.qiqi.community.entity.User;
 import com.qiqi.community.service.UserService;
 import com.qiqi.community.util.CommunityConstant;
+import com.qiqi.community.util.CommunityUtil;
+import com.qiqi.community.util.MailClient;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import javax.imageio.ImageIO;
 import javax.servlet.http.Cookie;
@@ -20,6 +24,7 @@ import javax.servlet.http.HttpSession;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.annotation.Retention;
 import java.net.HttpCookie;
 import java.util.Map;
 
@@ -36,6 +41,12 @@ public class LoginController implements CommunityConstant {
 
     @Value("${server.servlet.context-path}")
     private String contextPath;
+
+    @Autowired
+    private TemplateEngine templateEngine;
+
+    @Autowired
+    private MailClient mailClient;
 
 
 
@@ -132,4 +143,42 @@ public class LoginController implements CommunityConstant {
         return "redirect:/login";
     }
 
+    @RequestMapping(path = "/forget", method = RequestMethod.GET)
+    public String getForgetPage(){
+        return "/site/forget";
+    }
+
+    @RequestMapping(path = "/forget/code",method = RequestMethod.GET)
+    @ResponseBody
+    public String getForgetCode(String email, HttpSession session){
+        if(StringUtils.isBlank(email)){
+            return CommunityUtil.getJSONString(1,"Email can't be empty");
+        }
+        Context context = new Context();
+        context.setVariable("email",email);
+        String code = CommunityUtil.generateUUID().substring(0,4);
+        context.setVariable("verifyCode",code);
+        String content = templateEngine.process("/mail/forget",context);
+        mailClient.sendMail(email,"reset your password",content);
+        session.setAttribute("verifyCode",code);
+        return CommunityUtil.getJSONString(0);
+    }
+
+    @RequestMapping(path = "/forget/password",method = RequestMethod.POST)
+    public String resetPassword(String email, String verifyCode, String password, Model model, HttpSession session){
+        String code = (String) session.getAttribute("verifyCode");
+        if(StringUtils.isBlank(verifyCode) || StringUtils.isBlank(code) || !code.equals(verifyCode)){
+            model.addAttribute("codeMsg","The code is incorrect");
+            return "site/forget";
+        }
+        Map<String, Object> map = userService.resetPassword(email,password);
+        if(map.containsKey("user")){
+            return "redirect:/login";
+        }
+        else {
+            model.addAttribute("emailMsg", map.get("emailMsg"));
+            model.addAttribute("passwordMsg", map.get("passwordMsg"));
+            return "/site/forget";
+        }
+    }
 }
