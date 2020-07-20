@@ -3,7 +3,10 @@ package com.qiqi.community.controller;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.qiqi.community.annotation.LoginRequired;
 import com.qiqi.community.entity.User;
+import com.qiqi.community.service.FollowService;
+import com.qiqi.community.service.LikeService;
 import com.qiqi.community.service.UserService;
+import com.qiqi.community.util.CommunityConstant;
 import com.qiqi.community.util.CommunityUtil;
 import com.qiqi.community.util.HostHolder;
 import org.apache.commons.lang3.StringUtils;
@@ -16,6 +19,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
@@ -27,7 +31,7 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("/user")
-public class UserController {
+public class UserController implements CommunityConstant {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
@@ -45,6 +49,12 @@ public class UserController {
 
     @Autowired
     private HostHolder hostHolder;
+
+    @Autowired
+    private LikeService likeService;
+
+    @Autowired
+    private FollowService followService;
 
     @LoginRequired
     @RequestMapping(path = "/setting", method = RequestMethod.GET)
@@ -125,5 +135,34 @@ public class UserController {
             model.addAttribute("newPasswordMsg", map.get("newPasswordMsg"));
             return "/site/setting";
         }
+    }
+
+    //个人主页
+    @RequestMapping(path = "/profile/{userId}", method = RequestMethod.GET)
+    public String profilePage(@PathVariable("userId") int userId, Model model){
+        User user = userService.findUserById(userId);
+        if(user == null){
+            throw new RuntimeException("***[This user doesn't exits]***");
+        }
+
+        model.addAttribute("user", user);
+
+        int likeCount = likeService.findUserLikeCount(userId);
+        model.addAttribute("likeCount",likeCount);
+
+        // 关注数量
+        long followeeCount = followService.findFolloweeCount(userId, ENTITY_TYPE_USER);
+        model.addAttribute("followeeCount",followeeCount);
+        // 粉丝数量
+        long followerCount = followService.findFollowerCount(ENTITY_TYPE_USER, userId);
+        model.addAttribute("followerCount",followerCount);
+        // 是否已关注
+        boolean hasFollowed = false;
+        if(hostHolder.getUser() != null){
+            hasFollowed = followService.hasFollowed(hostHolder.getUser().getId(), ENTITY_TYPE_USER, userId);
+        }
+        model.addAttribute("hasFollowed", hasFollowed);
+
+        return "/site/profile";
     }
 }
